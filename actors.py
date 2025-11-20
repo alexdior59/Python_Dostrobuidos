@@ -11,9 +11,6 @@ from common.messages import deserialize, serialize, nuevo_mensaje
 
 
 def enviar_ga_con_failover(context, msg_dict, timeout_ms=2000):
-    """
-    Envía operación al GA con lógica de reintento en réplica (Failover).
-    """
     for endpoint in (GA_PRIMARY_ENDPOINT, GA_REPLICA_ENDPOINT):
         socket = context.socket(zmq.REQ)
         socket.connect(endpoint)
