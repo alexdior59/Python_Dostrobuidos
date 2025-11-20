@@ -1,18 +1,20 @@
 # common/config.py
 import os
 
-# Direcciones IP
-GC_IP = "127.0.0.1"
-ACTOR_PRESTAMO_IP = "127.0.0.1"
-GA_PRIMARY_IP = "127.0.0.1"
-GA_REPLICA_IP = "127.0.0.1"
+# PC-B: Nodo Principal (Gestor de Carga + Actores + GA Primario)
+GC_IP = "10.43.103.83"
+ACTOR_PRESTAMO_IP = "10.43.103.83"
+GA_PRIMARY_IP = "10.43.103.83"
+
+# PC-C: Nodo Réplica (GA Secundario)
+GA_REPLICA_IP = "10.43.102.197"
 
 # Configuración de Puertos
 GC_FRONTEND_PORT = 5555
 GC_PUB_PORT = 5556
 GA_REQUEST_PORT = 5570
 GA_REPL_PUSH_PORT = 5571
-GA_REPLICA_REQ_PORT = 5572  # Puerto alternativo para failover
+GA_REPLICA_REQ_PORT = 5572
 
 # Endpoints ZeroMQ
 GC_ENDPOINT = f"tcp://{GC_IP}:{GC_FRONTEND_PORT}"
