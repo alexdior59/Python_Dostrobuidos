@@ -5,7 +5,7 @@ import time
 from common.config import (
     GA_REQUEST_PORT,
     GA_REPL_PUSH_PORT,
-    GA_REPLICA_REQ_PORT, # <--- IMPORTAR ESTO NUEVO
+    GA_REPLICA_REQ_PORT,
     DB_REPLICA_PATH
 )
 from common.messages import deserialize, serialize
@@ -16,10 +16,9 @@ from common.db import (
 )
 
 
-# --- LOGICA DE NEGOCIO (Idéntica al primario pero usando DB_REPLICA_PATH) ---
+# Funciones de negocio para modo Failover
 
 def manejar_prestamo_repl(payload):
-    # Nota: En failover, validamos stocks reales de la réplica
     libro = buscar_libro_por_codigo(DB_REPLICA_PATH, payload["codigo_libro"])
     if not libro: return {"status": "ERROR", "reason": "LIBRO_NO_EXISTE"}
     if libro["ejemplares"] <= 0: return {"status": "RECHAZADO", "reason": "SIN_EJEMPLARES"}
@@ -42,15 +41,13 @@ def manejar_devolucion_repl(payload):
     return {"status": "OK"}
 
 
-# --- REPLICACION CIEGA (Confía en el primario) ---
+# Procesamiento de replicación
+
 def aplicar_replicacion(msg):
     op = msg["op"]
     payload = msg["payload"]
     try:
-        # Simplemente ejecutamos la lógica de DB.
-        # En JSON es seguro llamar a las mismas funciones porque buscan y actualizan.
         if op == "PRESTAMO":
-            # Forzamos creación asumiendo que primario validó
             libro = buscar_libro_por_codigo(DB_REPLICA_PATH, payload["codigo_libro"])
             if libro: crear_prestamo(DB_REPLICA_PATH, payload["id_usuario"], libro)
 
@@ -62,19 +59,20 @@ def aplicar_replicacion(msg):
             p = buscar_prestamo_por_id(DB_REPLICA_PATH, payload["id_prestamo"])
             if p: devolver_prestamo_db(DB_REPLICA_PATH, p)
 
-        print(f"[GA-REPL] Replicado: {op}")
+        print(f"[GA-REPL] Evento replicado: {op}")
     except Exception as e:
-        print(f"[GA-REPL] Error replicando: {e}")
+        print(f"[GA-REPL] Error en replicación: {e}")
 
 
 def main():
     inicializar_db(DB_REPLICA_PATH)
     context = zmq.Context()
 
+    # Socket PULL para stream de replicación
     socket_pull = context.socket(zmq.PULL)
     socket_pull.bind(f"tcp://*:{GA_REPL_PUSH_PORT}")
 
-    # CAMBIO AQUÍ: Usar GA_REPLICA_REQ_PORT (5572) en vez de GA_REQUEST_PORT (5570)
+    # Socket REP para peticiones directas (Modo Failover)
     socket_rep = context.socket(zmq.REP)
     socket_rep.bind(f"tcp://*:{GA_REPLICA_REQ_PORT}")
 
@@ -82,7 +80,7 @@ def main():
     poller.register(socket_pull, zmq.POLLIN)
     poller.register(socket_rep, zmq.POLLIN)
 
-    print(f"[GA-REPL] JSON Mode. Listo para FAILOVER (Port {GA_REPLICA_REQ_PORT}) y REPLICACION.")
+    print(f"[GA-REPL] Servicio Réplica activo. Failover en puerto {GA_REPLICA_REQ_PORT}")
 
     while True:
         try:
@@ -93,10 +91,10 @@ def main():
                 aplicar_replicacion(msg)
 
             if socket_rep in events:
-                # Failover activado: Respondemos al Actor
+                # Atención de solicitud por fallo en primario
                 data = socket_rep.recv()
                 msg = deserialize(data)
-                print(f"[GA-REPL] Failover Request: {msg['op']}")
+                print(f"[GA-REPL] Solicitud Failover recibida: {msg['op']}")
 
                 op = msg["op"]
                 if op == "PING":

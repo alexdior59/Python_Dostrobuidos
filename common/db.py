@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 
 
 def inicializar_db(filepath):
-    """Crea el archivo JSON con datos semilla si no existe."""
     if not os.path.exists(filepath):
         datos_iniciales = {
             "libros": [
@@ -16,7 +15,7 @@ def inicializar_db(filepath):
             "prestamos": []
         }
         guardar_json(filepath, datos_iniciales)
-        print(f"[DB] Base de datos creada en {filepath}")
+        print(f"[DB] Base de datos inicializada en {filepath}")
 
 
 def leer_json(filepath):
@@ -33,7 +32,7 @@ def guardar_json(filepath, data):
         json.dump(data, f, indent=4, default=str)
 
 
-# --- Funciones Helper para emular SQL ---
+# Funciones de acceso a datos
 
 def buscar_libro_por_codigo(filepath, codigo):
     db = leer_json(filepath)
@@ -54,13 +53,11 @@ def buscar_prestamo_por_id(filepath, id_prestamo):
 def crear_prestamo(filepath, id_usuario, libro_obj):
     db = leer_json(filepath)
 
-    # Actualizar stock libro
     for l in db["libros"]:
         if l["id"] == libro_obj["id"]:
             l["ejemplares"] -= 1
             break
 
-    # Crear registro préstamo
     nuevo_id = len(db["prestamos"]) + 1
     nuevo_prestamo = {
         "id_prestamo": nuevo_id,
@@ -81,7 +78,6 @@ def renovar_prestamo_db(filepath, prestamo_obj):
     for p in db["prestamos"]:
         if p["id_prestamo"] == prestamo_obj["id_prestamo"]:
             p["renovaciones"] += 1
-            # Parsear fecha para sumar días
             fecha_fin_dt = datetime.fromisoformat(p["fecha_fin"])
             p["fecha_fin"] = (fecha_fin_dt + timedelta(days=7)).isoformat()
             break
@@ -92,13 +88,11 @@ def devolver_prestamo_db(filepath, prestamo_obj):
     db = leer_json(filepath)
     id_libro = prestamo_obj["id_libro"]
 
-    # Marcar préstamo devuelto
     for p in db["prestamos"]:
         if p["id_prestamo"] == prestamo_obj["id_prestamo"]:
             p["estado"] = "DEVUELTO"
             break
 
-    # Devolver stock
     for l in db["libros"]:
         if l["id"] == id_libro:
             l["ejemplares"] += 1

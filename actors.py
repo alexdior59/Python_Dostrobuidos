@@ -12,9 +12,8 @@ from common.messages import deserialize, serialize, nuevo_mensaje
 
 def enviar_ga_con_failover(context, msg_dict, timeout_ms=2000):
     """
-    Envía una operación al GA. Si el primario no responde, intenta con la réplica.
+    Envía operación al GA con lógica de reintento en réplica (Failover).
     """
-    # Intentamos primero con el endpoint del primario, luego con el de la réplica
     for endpoint in (GA_PRIMARY_ENDPOINT, GA_REPLICA_ENDPOINT):
         socket = context.socket(zmq.REQ)
         socket.connect(endpoint)
@@ -22,18 +21,17 @@ def enviar_ga_con_failover(context, msg_dict, timeout_ms=2000):
         socket.SNDTIMEO = timeout_ms
 
         try:
-            # print(f"[ACTOR] Enviando a {endpoint}...") # Debug opcional
             socket.send(serialize(msg_dict))
             reply_raw = socket.recv()
             reply = deserialize(reply_raw)
             socket.close()
             return reply
         except zmq.error.Again:
-            print(f"[ACTOR] Timeout: GA no respondió en {endpoint}, probando siguiente...")
+            print(f"[ACTOR] Timeout en {endpoint}, intentando siguiente nodo...")
             socket.close()
             continue
         except Exception as e:
-            print(f"[ACTOR] Error conectando a {endpoint}: {e}")
+            print(f"[ACTOR] Error de conexión {endpoint}: {e}")
             socket.close()
             continue
 
@@ -41,10 +39,6 @@ def enviar_ga_con_failover(context, msg_dict, timeout_ms=2000):
 
 
 def actor_prestamo():
-    """
-    Actor que atiende solicitudes de préstamo de forma síncrona desde el GC.
-    Escucha en tcp://*:6000.
-    """
     context = zmq.Context()
     socket_rep = context.socket(zmq.REP)
     socket_rep.bind("tcp://*:6000")
@@ -58,7 +52,6 @@ def actor_prestamo():
 
             print(f"[Actor-Prestamo] Procesando solicitud...")
 
-            # Empaquetamos mensaje para GA
             msg_ga = nuevo_mensaje("PRESTAMO", payload)
             reply_ga = enviar_ga_con_failover(context, msg_ga)
 
@@ -68,39 +61,33 @@ def actor_prestamo():
 
 
 def actor_subscriptor(topic):
-    """
-    Actor genérico que se suscribe a un tópico del GC (renovacion/devolucion).
-    CORREGIDO: Ahora usa recv_multipart para leer mensajes divididos.
-    """
     context = zmq.Context()
 
     sub = context.socket(zmq.SUB)
     sub.connect(GC_PUB_ENDPOINT)
     sub.setsockopt_string(zmq.SUBSCRIBE, topic)
-    print(f"[Actor-{topic}] Suscrito a topic '{topic}' en {GC_PUB_ENDPOINT}")
+    print(f"[Actor-{topic}] Suscrito a '{topic}' en {GC_PUB_ENDPOINT}")
 
     while True:
         try:
-            # --- CORRECCION AQUI ---
-            # El GC envía [Topico, Mensaje], así que usamos recv_multipart
+            # Manejo de mensajes multipart (Tópico + Payload)
             frames = sub.recv_multipart()
 
             if len(frames) == 2:
-                topic_bytes, msg_raw = frames
-                # topic_str = topic_bytes.decode('utf-8') # No lo necesitamos realmente
-                msg_gc = deserialize(msg_raw)  # Deserializamos la segunda parte (JSON)
+                _, msg_raw = frames
+                msg_gc = deserialize(msg_raw)
 
                 op = "RENOVACION" if topic == "renovacion" else "DEVOLUCION"
                 msg_ga = nuevo_mensaje(op, msg_gc["payload"])
 
-                print(f"[Actor-{topic}] Reenviando operación a GA...")
+                print(f"[Actor-{topic}] Enviando operación a GA...")
                 reply_ga = enviar_ga_con_failover(context, msg_ga)
-                print(f"[Actor-{topic}] Resultado GA: {reply_ga}")
+                print(f"[Actor-{topic}] Respuesta GA: {reply_ga}")
             else:
-                print(f"[Actor-{topic}] Error: Formato de mensaje incorrecto recibido.")
+                print(f"[Actor-{topic}] Formato de mensaje inválido.")
 
         except Exception as e:
-            print(f"[Actor-{topic}] Error procesando mensaje: {e}")
+            print(f"[Actor-{topic}] Excepción: {e}")
 
 
 if __name__ == "__main__":

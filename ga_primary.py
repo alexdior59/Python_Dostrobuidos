@@ -76,7 +76,6 @@ def aplicar_operacion(msg):
 
 
 def main():
-    # Asegurar que el JSON existe al inicio
     inicializar_db(DB_PRIMARY_PATH)
 
     context = zmq.Context()
@@ -86,7 +85,7 @@ def main():
     socket_push = context.socket(zmq.PUSH)
     socket_push.connect(GA_REPL_PUSH_ENDPOINT)
 
-    print(f"[GA-PRIMARY] JSON Mode. Escuchando en tcp://*:{GA_REQUEST_PORT}")
+    print(f"[GA-PRIMARY] Servicio iniciado en tcp://*:{GA_REQUEST_PORT}")
 
     while True:
         try:
@@ -101,7 +100,7 @@ def main():
                 reply = result
                 if result.get("status") in ("OK", "RECHAZADO", "ERROR"):
                     PROCESSED_MESSAGES.add(msg_id)
-                    # Replicar solo si no es PING
+                    # Replicación de eventos de negocio
                     if msg["op"] != "PING":
                         socket_push.send(data)
 
