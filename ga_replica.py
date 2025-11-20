@@ -3,7 +3,9 @@
 import zmq
 import time
 from common.config import (
-    GA_REQUEST_PORT, GA_REPL_PUSH_PORT,
+    GA_REQUEST_PORT,
+    GA_REPL_PUSH_PORT,
+    GA_REPLICA_REQ_PORT, # <--- IMPORTAR ESTO NUEVO
     DB_REPLICA_PATH
 )
 from common.messages import deserialize, serialize
@@ -72,14 +74,15 @@ def main():
     socket_pull = context.socket(zmq.PULL)
     socket_pull.bind(f"tcp://*:{GA_REPL_PUSH_PORT}")
 
+    # CAMBIO AQUÍ: Usar GA_REPLICA_REQ_PORT (5572) en vez de GA_REQUEST_PORT (5570)
     socket_rep = context.socket(zmq.REP)
-    socket_rep.bind(f"tcp://*:{GA_REQUEST_PORT}")
+    socket_rep.bind(f"tcp://*:{GA_REPLICA_REQ_PORT}")
 
     poller = zmq.Poller()
     poller.register(socket_pull, zmq.POLLIN)
     poller.register(socket_rep, zmq.POLLIN)
 
-    print(f"[GA-REPL] JSON Mode. Listo para FAILOVER y REPLICACION.")
+    print(f"[GA-REPL] JSON Mode. Listo para FAILOVER (Port {GA_REPLICA_REQ_PORT}) y REPLICACION.")
 
     while True:
         try:
