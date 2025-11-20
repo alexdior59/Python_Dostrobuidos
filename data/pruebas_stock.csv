@@ -1,0 +1,13 @@
+# El libro ISBN-002 tiene solo 3 copias.
+# Pedimos la copia 1 (Debe ser OK)
+PRESTAMO,30,ISBN-002,
+# Pedimos la copia 2 (Debe ser OK)
+PRESTAMO,31,ISBN-002,
+# Pedimos la copia 3 (Debe ser OK - Se acaba el stock)
+PRESTAMO,32,ISBN-002,
+# Pedimos la copia 4 (Debe fallar)
+PRESTAMO,33,ISBN-002,
+# Devolvemos una copia para liberar stock
+DEVOLUCION,30,,2
+# Pedimos de nuevo la copia (Ahora debe ser OK)
+PRESTAMO,34,ISBN-002,

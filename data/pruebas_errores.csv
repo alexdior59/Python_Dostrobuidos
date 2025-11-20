@@ -1,0 +1,8 @@
+# Intento de préstamo de un libro que no existe en la BD
+PRESTAMO,20,ISBN-999,
+# Intento de devolución de un préstamo que no existe (ID 9999)
+DEVOLUCION,20,,9999
+# Intento de renovación de un préstamo que no existe
+RENOVACION,20,,8888
+# Préstamo válido para confirmar que el sistema sigue vivo
+PRESTAMO,20,ISBN-001,

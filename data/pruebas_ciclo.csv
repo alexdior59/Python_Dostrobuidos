@@ -1,0 +1,10 @@
+# 1. Usuario Juan pide un libro
+PRESTAMO,40,ISBN-003,
+# 2. Le gusta mucho y lo renueva (Renovación 1 - OK)
+RENOVACION,40,,1
+# 3. Lo renueva otra vez (Renovación 2 - OK)
+RENOVACION,40,,1
+# 4. Intenta renovar una tercera vez (Debe fallar)
+RENOVACION,40,,1
+# 5. Se rinde y lo devuelve
+DEVOLUCION,40,,1
